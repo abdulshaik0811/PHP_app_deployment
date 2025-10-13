@@ -1,0 +1,57 @@
+pipeline {
+    agent any
+    environment {
+        SCANNER_HOME=tool 'mysonar'
+    }
+    stages {
+        stage('CleanWS') {
+            steps {
+                cleanWs()
+            }
+        }
+        stage ('Code') {
+            steps {
+                git "https://github.com/abdulshaik0811/ltibbhackathon.git"
+            }
+        }
+        stage ('Sonarqube Analysis') {
+            steps {
+                withSonarQubeEnv('mysonar') {
+                    sh ''' $SCANNER_HOME/bin/sonar-scanner -Dsonar.projectName=zomato \
+                    -Dsonar.projectKey=zomato '''
+                }
+            }
+        }
+        stage ('Quality gates') {
+            steps {
+                script {
+                    waitForQualityGate abortPipeline: false, credentialsId: 'sonarcredentials'
+                }
+            }
+        }
+        stage ('Image') {
+            steps {
+                sh 'docker build -t appimage . '
+                sh 'docker build -t dbimage database/'
+            }
+        }
+        stage ('Image Scan') {
+            steps {
+                sh 'trivy image appimage'
+                sh 'trivy image dbimage'
+            }
+        }
+        stage ('Tag & push') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'dockerhub') {
+                         sh 'docker tag dbimage abdulshaik0811/clientapp:dbimage'
+                         sh 'docker tag appimage abdulshaik0811/clientapp:appimage'
+                         sh 'docker push abdulshaik0811/clientapp:dbimage'
+                         sh 'docker push abdulshaik0811/clientapp:appimage'
+                    }
+                }
+            }
+        }
+    }
+}
