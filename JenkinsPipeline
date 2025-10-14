@@ -54,4 +54,11 @@ pipeline {
             }
         }
     }
+    post {
+        always{
+            mail to: "shaikabduul36@gmail.com",
+            subject: "Pipeline Status",
+            body: "${currentBuild.currentResult}: Job ${env.JOB_NAME} \n build ${env.BUILD_NUMBER} \n More info at: ${env.BUILD_URL}"
+        }
+    }
 }
